@@ -1,0 +1,36 @@
+{
+	"ImportPath": "github.com/RobotsAndPencils/marvin",
+	"GoVersion": "go1.4.2",
+	"Deps": [
+		{
+			"ImportPath": "github.com/franela/goblin",
+			"Comment": "0.0.1-53-g2042c4d",
+			"Rev": "2042c4d610d2da4e4d2afd754da0b4eef31753bb"
+		},
+		{
+			"ImportPath": "github.com/google/go-github/github",
+			"Rev": "2431923100d4989611dcc339f1ff8d280bd9c84c"
+		},
+		{
+			"ImportPath": "github.com/google/go-querystring/query",
+			"Rev": "d8840cbb2baa915f4836edda4750050a2c0b7aea"
+		},
+		{
+			"ImportPath": "github.com/gorilla/schema",
+			"Rev": "c8422571edf3131506bab7df27e18980fe2598d5"
+		},
+		{
+			"ImportPath": "github.com/kelseyhightower/envconfig",
+			"Comment": "v1.0.0-6-ge904934",
+			"Rev": "e9049346b6aae8e6ad500c5a4519ad029439d660"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "97d8e4e174133a4d1d2171380e510eb4dea8f5ea"
+		},
+		{
+			"ImportPath": "golang.org/x/oauth2",
+			"Rev": "c4932a9b59a60daa02a28db1bb7be39d6ec2e542"
+		}
+	]
+}
