@@ -7,7 +7,9 @@ Example:
 type `/backlog RepoName` into Slack and it will display the current backlog items for that project.
 
 or `/readyforqa RepoName` and you’ll see all the items currently in progress.
+
 ![](https://dl.dropboxusercontent.com/s/l984qm2t9j2yfao/D3D7D390-F586-4C72-BA54-45251A252C1D-5045-00009A0112DCB887.gif?dl=0)
+
 `/assigned * GithubName` will fetch all tasks assigned to that user under the specified organization.
 or
 ```/assigned RepoName GitHub```  Will fetch all tasks assigned to that user under that repo.
