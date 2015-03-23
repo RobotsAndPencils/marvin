@@ -1,38 +1,16 @@
-# marvin
-Slack bot written in Go
+# Say Hi to Marvin
 
-When we move to waffle, it will open the doors for PMs to build tools that will streamline our development process.
+Marvin is Slack bot written in Go that allows Slack users to use Slash Commands to fetch a list of Github Issues that match a specific criteria.  We use a service called Waffle (http://waffle.io) that allows us to view our Issues in a kanban style board.  Each lane on Waffle has a corresponding label within Github issues.  We use these labels to keep track of which stage each issue is in across our entire company.
 
-One of the benefits is the standardization of the boards across the entire company.  If every project is set up the same, it means that we can built tools that can leverage this formatting and allow us to improve our daily standup and review processes.
+Example:
 
-One of the tools I would like to build is a bot that fetches names and assignees of issues in Github by a simple command in slack.
+type `/backlog RepoName` into Slack and it will display the current backlog items for that project.
 
-Ex:
+or `/inprogress RepoName` and you’ll see all the items currently in progress.
 
-type `/backlog blueotter` into slack and it will display the current backlog items for that project.
-
-
-or type `/inprogress blueotter` and you’ll see all the items currently in progress.
-
-This would help the company as a whole keep on top of who is working on what since we can expand this further in future versions that would allow us to type
-
-```/assigned * login```
+`/assigned * GithubName` will fetch all tasks assigned to that user under the specified organization.
 or
-```/assigned repo login```
-
-and it will show all the tasks he’s currently assigned to across the entire company.
-
-
-This would save Project Managers a lot of time.
-
-Consider this:
-
-Even if this saved each PM 10 mins a day, that would amount to 44 hours a year x 5 project managers = 220 hours per year.
-
-This would not only be used by project managers, but robots and pencils as well to quickly see what they are assigned to at any given point.
-
-If you consider it saving each developer and pencil 10 mins a day, that would save the entire team roughly 3000 hours a year.
-Thanks!
+```/assigned RepoName GitHub```  Will fetch all tasks assigned to that user under that repo.
 
 # Running Locally
 
