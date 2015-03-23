@@ -28,7 +28,7 @@ command /assigned
 text myrepository somelogin
 ```
 
-This should, by default, output information in the defauly channel you set up when you created the Incoming Webhook.
+This should, by default, output information in the default channel you set up when you created the Incoming Webhook.
 
 # Deploying to Heroku
 
