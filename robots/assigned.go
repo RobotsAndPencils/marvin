@@ -87,7 +87,7 @@ func (r AssignedBot) DeferredAction(p *Payload) {
 	service := githubservice.New(AssignedConfig.PersonalAccessToken)
 	issues, err := service.AssignedTo(AssignedConfig.Owner, repo, username)
 
-	attachments := BuildAttachmentsShowRepo(issues, true, err)
+	attachments := BuildAttachmentsShowRepo(issues, true, false, err)
 
 	var text string = "Assigned to *" + username + "* for repo *" + repo + "*"
 

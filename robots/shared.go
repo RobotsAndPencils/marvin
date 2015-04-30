@@ -98,10 +98,10 @@ func (i *IncomingWebhook) Send() error {
 }
 
 func BuildAttachments(issues []github.Issue, err error) []Attachment {
-	return BuildAttachmentsShowRepo(issues, false, err)
+	return BuildAttachmentsShowRepo(issues, false, true, err)
 }
 
-func BuildAttachmentsShowRepo(issues []github.Issue, showrepo bool, err error) []Attachment {
+func BuildAttachmentsShowRepo(issues []github.Issue, showrepo bool, showAssigned bool, err error) []Attachment {
 
 	var attachments []Attachment
 
@@ -110,12 +110,12 @@ func BuildAttachmentsShowRepo(issues []github.Issue, showrepo bool, err error) [
 
 			for _, issue := range issues {
 
-				var name string
+				var assigned string
 
 				if issue.Assignee != nil {
-					name = *issue.Assignee.Login
+					assigned = "Assigned to *" + *issue.Assignee.Login + "*"
 				} else {
-					name = "Unassigned"
+					assigned = "*Unassigned*"
 				}
 
 				var color string = "#A0A0A0"
@@ -137,17 +137,31 @@ func BuildAttachmentsShowRepo(issues []github.Issue, showrepo bool, err error) [
 					}
 				}
 
-				var title string = "Issue #" + strconv.Itoa(*issue.Number) + ", " + name + " [" + joinedLabels + "]"
+				var title string = "Issue #" + strconv.Itoa(*issue.Number) + ", " + *issue.Title
 
+				var text string = ""
+				if showAssigned {
+					text += assigned
+				}
 				if issue.Milestone != nil {
-					title += " - " + *issue.Milestone.Title
+					if showAssigned {
+						text += " for "
+					}
+					text += *issue.Milestone.Title
 				}
 
+				if len(joinedLabels) > 0 {
+					text += " - [" + joinedLabels + "]"
+				}
+
+				markdownFields := []MarkdownField{MarkdownFieldTitle, MarkdownFieldText}
+
 				attachment := &Attachment{
-					Title:     title,
-					TitleLink: *issue.HTMLURL,
-					Text:      *issue.Title,
-					Color:     color,
+					Title:      title,
+					TitleLink:  *issue.HTMLURL,
+					Text:       text,
+					Color:      color,
+					MarkdownIn: markdownFields,
 				}
 
 				attachments = append(attachments, *attachment)
