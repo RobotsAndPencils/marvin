@@ -60,7 +60,7 @@ type Attachment struct {
 	Text       string            `json:"text,omitempty"`
 	Color      string            `json:"color,omitempty"`
 	Fields     []AttachmentField `json:"fields,omitempty"`
-	MarkdownIn []MarkdownField   `json:"mrkdown_in,omitempty"`
+	MarkdownIn []MarkdownField   `json:"mrkdwn_in,omitempty"`
 	Title      string            `json:"title,omitempty"`
 	TitleLink  string            `json:"title_link,omitempty"`
 }
