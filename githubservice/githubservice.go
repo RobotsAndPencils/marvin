@@ -150,6 +150,10 @@ func (g *GithubService) Backlog(owner string, repo string) ([]github.Issue, erro
 	return g.makeIssueList(owner, repo, "", g.isBacklogItem)
 }
 
+func (g *GithubService) ReadyForReview(owner string, repo string) ([]github.Issue, error) {
+	return g.makeIssueList(owner, repo, "", g.isReadyForReview)
+}
+
 func (g *GithubService) getLabelString(labels []github.Label) string {
 	var retval string
 	for _, label := range labels {
@@ -189,6 +193,11 @@ func (g *GithubService) isInProgress(issue github.Issue) bool {
 func (g *GithubService) isReadyForQA(issue github.Issue) bool {
 	label := g.getLabelString(issue.Labels)
 	return strings.Contains(label, "ready") && strings.Contains(label, "for") && strings.Contains(label, "qa")
+}
+
+func (g *GithubService) isReadyForReview(issue github.Issue) bool {
+	label := g.getLabelString(issue.Labels)
+	return strings.Contains(label, "ready") && strings.Contains(label, "for") && strings.Contains(label, "review")
 }
 
 func (g *GithubService) isQAPass(issue github.Issue) bool {

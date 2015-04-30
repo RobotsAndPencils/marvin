@@ -48,6 +48,13 @@ func Test(t *testing.T) {
 			Expect(err).To(BeNil())
 		})
 
+		g.It("Should find ready for review items in pencilcase", func() {
+			issues, err := s.ReadyForReview("RobotsAndPencils", "pencilcase")
+
+			Expect(issues).ToNot(BeNil())
+			Expect(err).To(BeNil())
+		})
+
 		g.It("Should not find passed QA items in marvin", func() {
 			issues, err := s.QAPass("RobotsAndPencils", "marvin")
 
