@@ -6,6 +6,10 @@ import (
 	"github.com/google/go-github/github"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
+	"sort"
+	"strconv"
+	"time"
+	"fmt"
 )
 
 type GithubService struct {
@@ -119,6 +123,134 @@ func (g *GithubService) makeIssueList(owner string, repo string, assigned string
 	}
 
 	return sprintIssues, err
+}
+
+func (g *GithubService) loadReposForOrganization(owner string) ([]github.Repository, error) {
+	tokenSource := &TokenSource{
+		AccessToken: g.PersonalAccessToken,
+	}
+	oauthClient := oauth2.NewClient(context.TODO(), tokenSource)
+	client := github.NewClient(oauthClient)
+
+	var allRepos []github.Repository
+	var e error
+	opt := &github.RepositoryListByOrgOptions{
+		Type:        "all",
+		ListOptions: github.ListOptions{PerPage: 100},
+	}
+
+	for {
+		repos, resp, err := client.Repositories.ListByOrg(owner, opt)
+
+		if err != nil {
+			e = err
+			break
+		}
+
+		allRepos = append(allRepos, repos...)
+
+		if resp.NextPage == 0 {
+			break
+		}
+
+		opt.ListOptions.Page = resp.NextPage
+	}
+
+	return allRepos, e
+}
+
+// NameSorter sorts Repository by name.
+type NameSorter []github.Repository
+
+func (a NameSorter) Len() int           { return len(a) }
+func (a NameSorter) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a NameSorter) Less(i, j int) bool { return strings.ToLower(*a[i].Name) < strings.ToLower(*a[j].Name) }
+
+func (g *GithubService) findActiveReposForOrganization(owner string, days int) ([]github.Repository, error) {
+	var allRepos []github.Repository 
+	var activeRepos []github.Repository 
+	var e error
+
+	allRepos, err := g.loadReposForOrganization(owner)
+	if err != nil {
+		e = err
+	}
+	
+	for _, repo := range allRepos {
+		if (time.Since(repo.PushedAt.Time).Hours() <= float64(days) * 24) {
+			activeRepos = append(activeRepos, repo)
+		}
+	}
+	sort.Sort(NameSorter(activeRepos))
+	
+	return activeRepos, e
+}
+
+func (g *GithubService) findPRsForRepo(owner string, repo string) ([]github.PullRequest, error) {
+	tokenSource := &TokenSource{
+		AccessToken: g.PersonalAccessToken,
+	}
+	oauthClient := oauth2.NewClient(context.TODO(), tokenSource)
+	client := github.NewClient(oauthClient)
+
+	var allPRs []github.PullRequest
+	var e error
+	opt := &github.PullRequestListOptions{
+		State: 		"open",
+// TODO: These params should be available but sadly they don't pass the compiler
+//		Sort: 		"long-running",
+//		Direction: 	"desc",
+		ListOptions: github.ListOptions{PerPage: 100},
+	}
+
+	for {
+		pullRequests, resp, err := client.PullRequests.List(owner, repo, opt)
+		if err != nil {
+			e = err
+			break
+		}
+
+		allPRs = append(allPRs, pullRequests...)
+
+		if resp.NextPage == 0 {
+			break
+		}
+
+		opt.ListOptions.Page = resp.NextPage
+	}
+
+	return allPRs, e
+}
+
+type RepositoryPullRequests struct {
+	repo *github.Repository
+	pullRequests []github.PullRequest
+}
+
+func (g *GithubService) findOpenPRsForOrganization(owner string, days int) ([]RepositoryPullRequests, error) {
+	var activeRepos []github.Repository 
+	var e error
+
+	activeRepos, err := g.findActiveReposForOrganization(owner, days)
+	if err != nil {
+		e = err
+	}
+	
+	var allReposWithPRs []RepositoryPullRequests
+	for _, repo := range activeRepos {
+		pullRequests, err := g.findPRsForRepo(owner, *repo.Name)
+		if err != nil {
+			e = err
+			break
+		}
+		fmt.Println("Repo Name: " + *repo.Name + " with " + strconv.Itoa(len(pullRequests)) + " PRs")
+		if (len(pullRequests) > 0) {
+			repoWithPRs := RepositoryPullRequests{ &repo, pullRequests }
+			allReposWithPRs = append(allReposWithPRs, repoWithPRs)
+		}
+	}
+	
+	return allReposWithPRs, e
 }
 
 func (g *GithubService) AssignedTo(owner string, repo string, login string) ([]github.Issue, error) {

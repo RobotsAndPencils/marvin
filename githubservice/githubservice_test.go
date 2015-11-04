@@ -19,7 +19,28 @@ func Test(t *testing.T) {
 	s := New("PERSONAL ACCESS TOKEN HERE")
 
 	g.Describe("Github Service", func() {
+		daysOfActivity := 4
 
+		g.It("Should find repos for RobotsAndPencils", func() {
+			repos, err := s.findActiveReposForOrganization("RobotsAndPencils", daysOfActivity)
+
+			Expect(repos).ToNot(BeNil())
+			Expect(err).To(BeNil())
+			
+			fmt.Println("Active repositories = " + strconv.Itoa(len(repos)))
+		})
+		
+		g.It("Should find open pull requests for repos in RobotsAndPencils", func() {
+			pullRequests, err := s.findOpenPRsForOrganization("RobotsAndPencils", daysOfActivity)
+
+			Expect(pullRequests).ToNot(BeNil())
+			Expect(err).To(BeNil())
+			
+			fmt.Println("Active repositories that have open PRs = " + strconv.Itoa(len(pullRequests)))
+			
+			Expect(5).To(BeEquivalentTo(4))
+		})
+		
 		g.It("Should find product backlog items in marvin", func() {
 			issues, err := s.Backlog("RobotsAndPencils", "marvin")
 
@@ -91,6 +112,5 @@ func Test(t *testing.T) {
 
 			fmt.Println("Issue count: " + strconv.Itoa(len(issues)))
 		})
-
 	})
 }
