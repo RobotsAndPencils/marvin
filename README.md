@@ -16,11 +16,41 @@ or
 
 # Running Locally
 
-Edit the `config.json` and `github.json` files and put your specific slack and github information into it. Then, you can run
+Setup your go environment and make sure you have the `$GOPATH` variable defined as well as include `$GOPATH/bin` in your `$PATH`.
+
+Pull down the latest source code from Github for Marvin and after you should be able to see the files under `$GOPATH/src` directory
+
+```
+go get github.com/RobotsAndPencils/marvin
+```
+
+Create the `config.json` and `github.json` files and put your specific slack and github information into it. 
+
+## config.json
+
+```
+{ 
+        "domain": "robotsandpencils", 
+        "port": 4444, 
+        "webhookpath": "RNP SLACK WEBHOOKPATH HERE"
+}
+```
+
+## github.json
+
+```
+{ 
+        "owner": "RobotsAndPencils",
+        "personalAccessToken": "YOUR GITHUB ACCESS TOKEN HERE" 
+}
+```
+
+Then, you can run/test the programs locally after initializing 
 
 ```
 make init
 make run
+make test
 ```
 
 To test, use a web posting tool like `Postman` to sent a POST to `http://localhost:4444/slack` with `x-www-form-urlencoded` with at least a `command` and `text` parameters. For example:
