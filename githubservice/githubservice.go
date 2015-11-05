@@ -34,13 +34,16 @@ func (t *TokenSource) Token() (*oauth2.Token, error) {
 	return token, nil
 }
 
-func (g *GithubService) loadIssuesForAssignee(owner string, assignee string) ([]github.Issue, error) {
+func (g *GithubService) obtainAuthenticatedClient() (c *github.Client) {
 	tokenSource := &TokenSource{
 		AccessToken: g.PersonalAccessToken,
 	}
 	oauthClient := oauth2.NewClient(context.TODO(), tokenSource)
-	client := github.NewClient(oauthClient)
+	return github.NewClient(oauthClient)
+}
 
+func (g *GithubService) loadIssuesForAssignee(owner string, assignee string) ([]github.Issue, error) {
+	var client = g.obtainAuthenticatedClient()
 	var all []github.Issue
 	var e error
 	opt := &github.SearchOptions{
@@ -69,12 +72,7 @@ func (g *GithubService) loadIssuesForAssignee(owner string, assignee string) ([]
 }
 
 func (g *GithubService) loadIssuesForRepo(owner string, repo string, assigned string) ([]github.Issue, error) {
-	tokenSource := &TokenSource{
-		AccessToken: g.PersonalAccessToken,
-	}
-	oauthClient := oauth2.NewClient(context.TODO(), tokenSource)
-	client := github.NewClient(oauthClient)
-
+	var client = g.obtainAuthenticatedClient()
 	var allIssues []github.Issue
 	var e error
 	opt := &github.IssueListByRepoOptions{
@@ -126,12 +124,7 @@ func (g *GithubService) makeIssueList(owner string, repo string, assigned string
 }
 
 func (g *GithubService) loadReposForOrganization(owner string) ([]github.Repository, error) {
-	tokenSource := &TokenSource{
-		AccessToken: g.PersonalAccessToken,
-	}
-	oauthClient := oauth2.NewClient(context.TODO(), tokenSource)
-	client := github.NewClient(oauthClient)
-
+	var client = g.obtainAuthenticatedClient()
 	var allRepos []github.Repository
 	var e error
 	opt := &github.RepositoryListByOrgOptions{
@@ -187,12 +180,7 @@ func (g *GithubService) findActiveReposForOrganization(owner string, days int) (
 }
 
 func (g *GithubService) findPRsForRepo(owner string, repo string) ([]github.PullRequest, error) {
-	tokenSource := &TokenSource{
-		AccessToken: g.PersonalAccessToken,
-	}
-	oauthClient := oauth2.NewClient(context.TODO(), tokenSource)
-	client := github.NewClient(oauthClient)
-
+	var client = g.obtainAuthenticatedClient()
 	var allPRs []github.PullRequest
 	var e error
 	opt := &github.PullRequestListOptions{
