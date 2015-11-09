@@ -9,7 +9,6 @@ import (
 	"sort"
 	"strconv"
 	"time"
-	"fmt"
 )
 
 type GithubService struct {
@@ -34,7 +33,7 @@ func (t *TokenSource) Token() (*oauth2.Token, error) {
 	return token, nil
 }
 
-func (g *GithubService) obtainAuthenticatedClient() (c *github.Client) {
+func (g *GithubService) obtainAuthenticatedGithubClient() (c *github.Client) {
 	tokenSource := &TokenSource{
 		AccessToken: g.PersonalAccessToken,
 	}
@@ -43,7 +42,7 @@ func (g *GithubService) obtainAuthenticatedClient() (c *github.Client) {
 }
 
 func (g *GithubService) loadIssuesForAssignee(owner string, assignee string) ([]github.Issue, error) {
-	var client = g.obtainAuthenticatedClient()
+	var client = g.obtainAuthenticatedGithubClient()
 	var all []github.Issue
 	var e error
 	opt := &github.SearchOptions{
@@ -72,7 +71,7 @@ func (g *GithubService) loadIssuesForAssignee(owner string, assignee string) ([]
 }
 
 func (g *GithubService) loadIssuesForRepo(owner string, repo string, assigned string) ([]github.Issue, error) {
-	var client = g.obtainAuthenticatedClient()
+	var client = g.obtainAuthenticatedGithubClient()
 	var allIssues []github.Issue
 	var e error
 	opt := &github.IssueListByRepoOptions{
@@ -100,31 +99,8 @@ func (g *GithubService) loadIssuesForRepo(owner string, repo string, assigned st
 	return allIssues, e
 }
 
-func (g *GithubService) makeIssueList(owner string, repo string, assigned string, lambda func(github.Issue) bool) ([]github.Issue, error) {
-
-	issues, err := g.loadIssuesForRepo(owner, repo, assigned)
-
-	if err != nil {
-		return nil, err
-	}
-
-	var sprintIssues []github.Issue
-
-	for _, issue := range issues {
-
-		// Backlog items are ones that don't match any of the other categories
-		if issue.Labels != nil {
-			if lambda(issue) {
-				sprintIssues = append(sprintIssues, issue)
-			}
-		}
-	}
-
-	return sprintIssues, err
-}
-
 func (g *GithubService) loadReposForOrganization(owner string) ([]github.Repository, error) {
-	var client = g.obtainAuthenticatedClient()
+	var client = g.obtainAuthenticatedGithubClient()
 	var allRepos []github.Repository
 	var e error
 	opt := &github.RepositoryListByOrgOptions{
@@ -152,42 +128,15 @@ func (g *GithubService) loadReposForOrganization(owner string) ([]github.Reposit
 	return allRepos, e
 }
 
-// NameSorter sorts Repository by name.
-type NameSorter []github.Repository
-
-func (a NameSorter) Len() int           { return len(a) }
-func (a NameSorter) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a NameSorter) Less(i, j int) bool { return strings.ToLower(*a[i].Name) < strings.ToLower(*a[j].Name) }
-
-func (g *GithubService) findActiveReposForOrganization(owner string, days int) ([]github.Repository, error) {
-	var allRepos []github.Repository 
-	var activeRepos []github.Repository 
-	var e error
-
-	allRepos, err := g.loadReposForOrganization(owner)
-	if err != nil {
-		e = err
-	}
-	
-	for _, repo := range allRepos {
-		if (time.Since(repo.PushedAt.Time).Hours() <= float64(days) * 24) {
-			activeRepos = append(activeRepos, repo)
-		}
-	}
-	sort.Sort(NameSorter(activeRepos))
-	
-	return activeRepos, e
-}
-
-func (g *GithubService) findPRsForRepo(owner string, repo string) ([]github.PullRequest, error) {
-	var client = g.obtainAuthenticatedClient()
+func (g *GithubService) loadPRsForRepo(owner string, repo string) ([]github.PullRequest, error) {
+	var client = g.obtainAuthenticatedGithubClient()
 	var allPRs []github.PullRequest
 	var e error
 	opt := &github.PullRequestListOptions{
-		State: 		"open",
-// TODO: These params should be available but sadly they don't pass the compiler
-//		Sort: 		"long-running",
-//		Direction: 	"desc",
+		State: "open",
+		// TODO: These params should be available but sadly they don't pass the compiler
+		//		Sort: 		"long-running",
+		//		Direction: 	"desc",
 		ListOptions: github.ListOptions{PerPage: 100},
 	}
 
@@ -210,35 +159,86 @@ func (g *GithubService) findPRsForRepo(owner string, repo string) ([]github.Pull
 	return allPRs, e
 }
 
-type RepositoryPullRequests struct {
-	repo *github.Repository
-	pullRequests []github.PullRequest
-}
-
-func (g *GithubService) findOpenPRsForOrganization(owner string, days int) ([]RepositoryPullRequests, error) {
-	var activeRepos []github.Repository 
+func (g *GithubService) loadActiveReposForOrganization(owner string, days int) ([]github.Repository, error) {
+	var allRepos []github.Repository
+	var activeRepos []github.Repository
 	var e error
 
-	activeRepos, err := g.findActiveReposForOrganization(owner, days)
+	allRepos, err := g.loadReposForOrganization(owner)
 	if err != nil {
 		e = err
 	}
-	
-	var allReposWithPRs []RepositoryPullRequests
+
+	for _, repo := range allRepos {
+		if time.Since(repo.PushedAt.Time).Hours() <= float64(days)*24 {
+			activeRepos = append(activeRepos, repo)
+		}
+	}
+	sort.Sort(RepositoryNameSorter(activeRepos))
+
+	return activeRepos, e
+}
+
+func (g *GithubService) loadOpenPRsForOrganization(owner string, days int) ([]RepositoryPullRequest, error) {
+	var activeRepos []github.Repository
+	var e error
+
+	activeRepos, err := g.loadActiveReposForOrganization(owner, days)
+	if err != nil {
+		e = err
+	}
+
+	var allReposWithPRs []RepositoryPullRequest
 	for _, repo := range activeRepos {
-		pullRequests, err := g.findPRsForRepo(owner, *repo.Name)
+		pullRequests, err := g.loadPRsForRepo(owner, *repo.Name)
 		if err != nil {
 			e = err
 			break
 		}
-		fmt.Println("Repo Name: " + *repo.Name + " with " + strconv.Itoa(len(pullRequests)) + " PRs")
-		if (len(pullRequests) > 0) {
-			repoWithPRs := RepositoryPullRequests{ &repo, pullRequests }
+		if len(pullRequests) > 0 {
+			repoWithPRs := RepositoryPullRequest{repo, pullRequests}
 			allReposWithPRs = append(allReposWithPRs, repoWithPRs)
 		}
 	}
-	
+
 	return allReposWithPRs, e
+}
+
+// RepositoryNameSorter sorts Repository by name.
+type RepositoryNameSorter []github.Repository
+
+func (a RepositoryNameSorter) Len() int      { return len(a) }
+func (a RepositoryNameSorter) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a RepositoryNameSorter) Less(i, j int) bool {
+	return strings.ToLower(*a[i].Name) < strings.ToLower(*a[j].Name)
+}
+
+type RepositoryPullRequest struct {
+	Repository   github.Repository
+	PullRequests []github.PullRequest
+}
+
+func (g *GithubService) makeIssueList(owner string, repo string, assigned string, lambda func(github.Issue) bool) ([]github.Issue, error) {
+
+	issues, err := g.loadIssuesForRepo(owner, repo, assigned)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var sprintIssues []github.Issue
+
+	for _, issue := range issues {
+
+		// Backlog items are ones that don't match any of the other categories
+		if issue.Labels != nil {
+			if lambda(issue) {
+				sprintIssues = append(sprintIssues, issue)
+			}
+		}
+	}
+
+	return sprintIssues, err
 }
 
 func (g *GithubService) AssignedTo(owner string, repo string, login string) ([]github.Issue, error) {
@@ -272,6 +272,10 @@ func (g *GithubService) Backlog(owner string, repo string) ([]github.Issue, erro
 
 func (g *GithubService) ReadyForReview(owner string, repo string) ([]github.Issue, error) {
 	return g.makeIssueList(owner, repo, "", g.isReadyForReview)
+}
+
+func (g *GithubService) OpenPullRequests(owner string, duration int) ([]RepositoryPullRequest, error) {
+	return g.loadOpenPRsForOrganization(owner, duration)
 }
 
 func (g *GithubService) getLabelString(labels []github.Label) string {
