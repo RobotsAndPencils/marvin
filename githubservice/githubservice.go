@@ -6,6 +6,8 @@ import (
 	"github.com/google/go-github/github"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
+	"sort"
+	"time"
 )
 
 type GithubService struct {
@@ -30,13 +32,16 @@ func (t *TokenSource) Token() (*oauth2.Token, error) {
 	return token, nil
 }
 
-func (g *GithubService) loadIssuesForAssignee(owner string, assignee string) ([]github.Issue, error) {
+func (g *GithubService) obtainAuthenticatedGithubClient() (c *github.Client) {
 	tokenSource := &TokenSource{
 		AccessToken: g.PersonalAccessToken,
 	}
 	oauthClient := oauth2.NewClient(context.TODO(), tokenSource)
-	client := github.NewClient(oauthClient)
+	return github.NewClient(oauthClient)
+}
 
+func (g *GithubService) loadIssuesForAssignee(owner string, assignee string) ([]github.Issue, error) {
+	var client = g.obtainAuthenticatedGithubClient()
 	var all []github.Issue
 	var e error
 	opt := &github.SearchOptions{
@@ -65,12 +70,7 @@ func (g *GithubService) loadIssuesForAssignee(owner string, assignee string) ([]
 }
 
 func (g *GithubService) loadIssuesForRepo(owner string, repo string, assigned string) ([]github.Issue, error) {
-	tokenSource := &TokenSource{
-		AccessToken: g.PersonalAccessToken,
-	}
-	oauthClient := oauth2.NewClient(context.TODO(), tokenSource)
-	client := github.NewClient(oauthClient)
-
+	var client = g.obtainAuthenticatedGithubClient()
 	var allIssues []github.Issue
 	var e error
 	opt := &github.IssueListByRepoOptions{
@@ -96,6 +96,125 @@ func (g *GithubService) loadIssuesForRepo(owner string, repo string, assigned st
 	}
 
 	return allIssues, e
+}
+
+func (g *GithubService) loadReposForOrganization(owner string) ([]github.Repository, error) {
+	var client = g.obtainAuthenticatedGithubClient()
+	var allRepos []github.Repository
+	var e error
+	opt := &github.RepositoryListByOrgOptions{
+		Type:        "all",
+		ListOptions: github.ListOptions{PerPage: 100},
+	}
+
+	for {
+		repos, resp, err := client.Repositories.ListByOrg(owner, opt)
+
+		if err != nil {
+			e = err
+			break
+		}
+
+		allRepos = append(allRepos, repos...)
+
+		if resp.NextPage == 0 {
+			break
+		}
+
+		opt.ListOptions.Page = resp.NextPage
+	}
+
+	return allRepos, e
+}
+
+func (g *GithubService) loadPRsForRepo(owner string, repo string) ([]github.PullRequest, error) {
+	var client = g.obtainAuthenticatedGithubClient()
+	var allPRs []github.PullRequest
+	var e error
+	opt := &github.PullRequestListOptions{
+		State: "open",
+		// TODO: These params should be available but sadly they don't pass the compiler
+		//		Sort: 		"long-running",
+		//		Direction: 	"desc",
+		ListOptions: github.ListOptions{PerPage: 100},
+	}
+
+	for {
+		pullRequests, resp, err := client.PullRequests.List(owner, repo, opt)
+		if err != nil {
+			e = err
+			break
+		}
+
+		allPRs = append(allPRs, pullRequests...)
+
+		if resp.NextPage == 0 {
+			break
+		}
+
+		opt.ListOptions.Page = resp.NextPage
+	}
+
+	return allPRs, e
+}
+
+func (g *GithubService) loadActiveReposForOrganization(owner string, days int) ([]github.Repository, error) {
+	var allRepos []github.Repository
+	var activeRepos []github.Repository
+	var e error
+
+	allRepos, err := g.loadReposForOrganization(owner)
+	if err != nil {
+		e = err
+	}
+
+	for _, repo := range allRepos {
+		if time.Since(repo.PushedAt.Time).Hours() <= float64(days)*24 {
+			activeRepos = append(activeRepos, repo)
+		}
+	}
+	sort.Sort(RepositoryNameSorter(activeRepos))
+
+	return activeRepos, e
+}
+
+func (g *GithubService) loadOpenPRsForOrganization(owner string, days int) ([]RepositoryPullRequest, error) {
+	var activeRepos []github.Repository
+	var e error
+
+	activeRepos, err := g.loadActiveReposForOrganization(owner, days)
+	if err != nil {
+		e = err
+	}
+
+	var allReposWithPRs []RepositoryPullRequest
+	for _, repo := range activeRepos {
+		pullRequests, err := g.loadPRsForRepo(owner, *repo.Name)
+		if err != nil {
+			e = err
+			break
+		}
+		if len(pullRequests) > 0 {
+			repoWithPRs := RepositoryPullRequest{repo, pullRequests}
+			allReposWithPRs = append(allReposWithPRs, repoWithPRs)
+		}
+	}
+
+	return allReposWithPRs, e
+}
+
+// RepositoryNameSorter sorts Repository by name.
+type RepositoryNameSorter []github.Repository
+
+func (a RepositoryNameSorter) Len() int      { return len(a) }
+func (a RepositoryNameSorter) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a RepositoryNameSorter) Less(i, j int) bool {
+	return strings.ToLower(*a[i].Name) < strings.ToLower(*a[j].Name)
+}
+
+type RepositoryPullRequest struct {
+	Repository   github.Repository
+	PullRequests []github.PullRequest
 }
 
 func (g *GithubService) makeIssueList(owner string, repo string, assigned string, lambda func(github.Issue) bool) ([]github.Issue, error) {
@@ -152,6 +271,10 @@ func (g *GithubService) Backlog(owner string, repo string) ([]github.Issue, erro
 
 func (g *GithubService) ReadyForReview(owner string, repo string) ([]github.Issue, error) {
 	return g.makeIssueList(owner, repo, "", g.isReadyForReview)
+}
+
+func (g *GithubService) OpenPullRequests(owner string, duration int) ([]RepositoryPullRequest, error) {
+	return g.loadOpenPRsForOrganization(owner, duration)
 }
 
 func (g *GithubService) getLabelString(labels []github.Label) string {

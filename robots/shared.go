@@ -12,7 +12,9 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
+	"github.com/RobotsAndPencils/marvin/githubservice"
 	"github.com/google/go-github/github"
 	"github.com/kelseyhightower/envconfig"
 )
@@ -182,6 +184,66 @@ func BuildAttachmentsShowRepo(issues []github.Issue, showrepo bool, showAssigned
 			Color: "#ff0000",
 		}
 
+		attachments = append(attachments, *attachment)
+	}
+
+	return attachments
+}
+
+func BuildAttachmentsShowPullRequests(reposWithPRs []githubservice.RepositoryPullRequest, err error) []Attachment {
+	var attachments []Attachment
+
+	if err == nil {
+		if len(reposWithPRs) > 0 {
+			for _, item := range reposWithPRs {
+				for _, pullRequest := range item.PullRequests {
+					var numberOfDays = time.Since(*pullRequest.CreatedAt).Hours() / 24
+					if numberOfDays < 1 {
+						break // These PRs are too new for us to care about
+					}
+
+					// Setup a color gradient to quickly show PR age for someone scanning the list
+					var colour = "#ffe7e7"
+					if numberOfDays > 30 {
+						colour = "#ff1010"
+					} else if numberOfDays > 7 {
+						colour = "#ff5757"
+					} else if numberOfDays > 3 {
+						colour = "#ff9f9f"
+					}
+
+					var assigned string
+					if pullRequest.User != nil {
+						assigned = "_" + *pullRequest.User.Login + "_"
+					} else {
+						assigned = "_Unassigned_"
+					}
+
+					var title string = "PR #" + strconv.Itoa(*pullRequest.Number) + " - " + *pullRequest.Title
+					var description string = strconv.FormatFloat(numberOfDays, 'f', 0, 64) + " days open in *" + *item.Repository.Name + "* by " + assigned
+					markdownFields := []MarkdownField{MarkdownFieldTitle, MarkdownFieldText}
+					attachment := &Attachment{
+						Title:      title,
+						TitleLink:  *pullRequest.HTMLURL,
+						Text:       description,
+						Color:      colour,
+						MarkdownIn: markdownFields,
+					}
+					attachments = append(attachments, *attachment)
+				}
+			}
+		} else {
+			attachment := &Attachment{
+				Text:  "No active repositories have any open pull requests.",
+				Color: "#A0A0A0",
+			}
+			attachments = append(attachments, *attachment)
+		}
+	} else {
+		attachment := &Attachment{
+			Text:  "Error: " + err.Error(),
+			Color: "#ff0000",
+		}
 		attachments = append(attachments, *attachment)
 	}
 
