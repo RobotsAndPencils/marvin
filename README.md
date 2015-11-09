@@ -30,7 +30,7 @@ Create the `config.json` and `github.json` files and put your specific slack and
 
 ```
 { 
-        "domain": "robotsandpencils", 
+        "domain": "YOUR SLACK DOMAIN HERE", 
         "port": 4444, 
         "webhookpath": "RNP SLACK WEBHOOKPATH HERE"
 }
@@ -40,7 +40,7 @@ Create the `config.json` and `github.json` files and put your specific slack and
 
 ```
 { 
-        "owner": "RobotsAndPencils",
+        "owner": "YOUR GITHUB ID HERE",
         "personalAccessToken": "YOUR GITHUB ACCESS TOKEN HERE" 
 }
 ```
