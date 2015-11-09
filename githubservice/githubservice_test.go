@@ -19,30 +19,24 @@ func Test(t *testing.T) {
 	s := New("PERSONAL ACCESS TOKEN HERE")
 
 	g.Describe("Github Service", func() {
-		daysOfActivity := 4
+		daysOfActivity := 1
 
-		g.It("Should find repos for RobotsAndPencils", func() {
-			repos, err := s.findActiveReposForOrganization("RobotsAndPencils", daysOfActivity)
+		g.It("Should find active repos for RobotsAndPencils", func() {
+			repos, err := s.loadActiveReposForOrganization("RobotsAndPencils", daysOfActivity)
 
 			Expect(repos).ToNot(BeNil())
 			Expect(err).To(BeNil())
-			
-			fmt.Println("Active repositories = " + strconv.Itoa(len(repos)))
 		})
-		
-		g.It("Should find open pull requests for repos in RobotsAndPencils", func() {
-			pullRequests, err := s.findOpenPRsForOrganization("RobotsAndPencils", daysOfActivity)
+
+		g.It("Should find open pull requests for active repos in RobotsAndPencils", func() {
+			pullRequests, err := s.loadOpenPRsForOrganization("RobotsAndPencils", daysOfActivity)
 
 			Expect(pullRequests).ToNot(BeNil())
 			Expect(err).To(BeNil())
-			
-			fmt.Println("Active repositories that have open PRs = " + strconv.Itoa(len(pullRequests)))
-			
-			Expect(5).To(BeEquivalentTo(4))
 		})
-		
-		g.It("Should find product backlog items in marvin", func() {
-			issues, err := s.Backlog("RobotsAndPencils", "marvin")
+
+		g.It("Should find product backlog items in pencilcase", func() {
+			issues, err := s.Backlog("RobotsAndPencils", "pencilcase")
 
 			Expect(issues).ToNot(BeNil())
 			Expect(err).To(BeNil())
@@ -55,24 +49,24 @@ func Test(t *testing.T) {
 			Expect(err).To(BeNil())
 		})
 
-		g.It("Should find in progress items in marvin", func() {
-			issues, err := s.InProgress("RobotsAndPencils", "marvin")
+		g.It("Should find in progress items in pencilcase", func() {
+			issues, err := s.InProgress("RobotsAndPencils", "pencilcase")
 
 			Expect(issues).ToNot(BeNil())
 			Expect(err).To(BeNil())
 		})
 
-		g.It("Should find ready for QA items in marvin", func() {
-			issues, err := s.ReadyForQA("RobotsAndPencils", "marvin")
+		g.It("Should find ready for QA items in pencilcase", func() {
+			issues, err := s.ReadyForQA("RobotsAndPencils", "pencilcase")
+
+			Expect(issues).ToNot(BeNil())
+			Expect(err).To(BeNil())
+		})
+
+		g.It("Should not find ready for review items in marvin", func() {
+			issues, err := s.ReadyForReview("RobotsAndPencils", "marvin")
 
 			Expect(issues).To(BeNil())
-			Expect(err).To(BeNil())
-		})
-
-		g.It("Should find ready for review items in pencilcase", func() {
-			issues, err := s.ReadyForReview("RobotsAndPencils", "pencilcase")
-
-			Expect(issues).ToNot(BeNil())
 			Expect(err).To(BeNil())
 		})
 
@@ -86,14 +80,14 @@ func Test(t *testing.T) {
 		g.It("Should load all of the issues for gambit", func() {
 			issues, _ := s.loadIssuesForRepo("RobotsAndPencils", "gambit", "")
 
-			Expect(len(issues)).To(BeEquivalentTo(36))
+			Expect(len(issues)).To(BeEquivalentTo(59))
 		})
 
 		g.It("Should find 4 sprint tasks in gambit", func() {
 			issues, err := s.Sprint("RobotsAndPencils", "gambit")
 
 			Expect(issues).ToNot(BeNil())
-			Expect(len(issues)).To(BeEquivalentTo(3))
+			Expect(len(issues)).To(BeEquivalentTo(5))
 			Expect(err).To(BeNil())
 		})
 
