@@ -36,6 +36,10 @@ Create the `config.json` and `github.json` files and put your specific slack and
 }
 ```
 
+**domain** is the subdomain of the slack url used by your company. For example it would be the `mycompany` part of `mycompany.slack.com`
+
+**webhookpath** This will need to be set up in Slack's incoming webhooks integration. If the integration has already been set up you can find the value in Slack settings: `Integrations > Configured Integrations > Incoming WebHooks > #channel > Webhook URL`. Where `#channel` is the slack channel that the webhook is set up to post to..
+
 ## github.json
 
 ```
@@ -44,6 +48,10 @@ Create the `config.json` and `github.json` files and put your specific slack and
         "personalAccessToken": "YOUR GITHUB ACCESS TOKEN HERE" 
 }
 ```
+
+**owner** is the userid or organization id that you want to use that has access to all of the repos you want the bot to be able to query.
+
+**personalAccessToken** can be found by going to `settings/profile` on github.com and selecting `Generate New Token` from the `Personal Access Token` tab.
 
 Then, you can run/test the programs locally after initializing 
 
