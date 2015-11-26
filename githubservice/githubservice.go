@@ -98,6 +98,34 @@ func (g *GithubService) loadIssuesForRepo(owner string, repo string, assigned st
 	return allIssues, e
 }
 
+func (g *GithubService) loadCommitsForRepo(owner string, repo string, committer string) ([]github.RepositoryCommit, error) {
+	var client = g.obtainAuthenticatedGithubClient()
+	var allCommits []github.RepositoryCommit
+	var e error
+	opt := &github.CommitsListOptions{
+		ListOptions: github.ListOptions{PerPage: 500},
+	}
+
+	for {
+		repositoryCommits, resp, err := client.Repositories.ListCommits(owner, repo, opt)
+
+		if err != nil {
+			e = err
+			break
+		}
+
+		allCommits = append(allCommits, repositoryCommits...)
+
+		if resp.NextPage == 0 {
+			break
+		}
+
+		opt.ListOptions.Page = resp.NextPage
+	}
+
+	return allCommits, e
+}
+
 func (g *GithubService) loadReposForOrganization(owner string) ([]github.Repository, error) {
 	var client = g.obtainAuthenticatedGithubClient()
 	var allRepos []github.Repository
@@ -240,6 +268,26 @@ func (g *GithubService) makeIssueList(owner string, repo string, assigned string
 	return sprintIssues, err
 }
 
+func (g *GithubService) makeCommitsList(owner string, repo string, committer string, lambda func(github.RepositoryCommit) bool) ([]github.RepositoryCommit, error) {
+
+	commits, err := g.loadCommitsForRepo(owner, repo, committer)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var masterCommits []github.RepositoryCommit
+
+	for _, commit := range commits {
+		// Filter commits based on provided lambda
+		if lambda(commit) {
+			masterCommits = append(masterCommits, commit)
+		}
+	}
+
+	return masterCommits, err
+}
+
 func (g *GithubService) AssignedTo(owner string, repo string, login string) ([]github.Issue, error) {
 	if repo == "*" {
 		return g.loadIssuesForAssignee(owner, login)
@@ -275,6 +323,10 @@ func (g *GithubService) ReadyForReview(owner string, repo string) ([]github.Issu
 
 func (g *GithubService) OpenPullRequests(owner string, duration int) ([]RepositoryPullRequest, error) {
 	return g.loadOpenPRsForOrganization(owner, duration)
+}
+
+func (g *GithubService) CommitsToMaster(owner string, repo string) ([]github.RepositoryCommit, error) {
+	return g.makeCommitsList(owner, repo, "", g.isCommitToMaster)
 }
 
 func (g *GithubService) getLabelString(labels []github.Label) string {
@@ -331,4 +383,8 @@ func (g *GithubService) isQAPass(issue github.Issue) bool {
 func (g *GithubService) isDone(issue github.Issue) bool {
 	label := g.getLabelString(issue.Labels)
 	return strings.Contains(label, "done")
+}
+
+func (g *GithubService) isCommitToMaster(commit github.RepositoryCommit) bool {
+	return true
 }

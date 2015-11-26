@@ -249,3 +249,46 @@ func BuildAttachmentsShowPullRequests(reposWithPRs []githubservice.RepositoryPul
 
 	return attachments
 }
+
+func BuildAttachmentsShowCommits(repoCommits []github.RepositoryCommit, err error) []Attachment {
+	var attachments []Attachment
+
+	if err == nil {
+		if len(repoCommits) > 0 {
+			for _, commit := range repoCommits {
+				var author string
+				if commit.Author != nil {
+					author = "_" + *commit.Author.Login + "_"
+				} else {
+					author = "_Unknown_"
+				}
+
+				var title string = "Commit " + (*commit.SHA)[0:7]
+				var description string = "by " + author + " - " + *commit.Commit.Message
+				markdownFields := []MarkdownField{MarkdownFieldTitle, MarkdownFieldText}
+				attachment := &Attachment{
+					Title:      title,
+					TitleLink:  *commit.HTMLURL,
+					Text:       description,
+					Color:      "#ff1010",
+					MarkdownIn: markdownFields,
+				}
+				attachments = append(attachments, *attachment)
+			}
+		} else {
+			attachment := &Attachment{
+				Text:  "No commits to master were found.",
+				Color: "#A0A0A0",
+			}
+			attachments = append(attachments, *attachment)
+		}
+	} else {
+		attachment := &Attachment{
+			Text:  "Error: " + err.Error(),
+			Color: "#ff0000",
+		}
+		attachments = append(attachments, *attachment)
+	}
+
+	return attachments
+}
