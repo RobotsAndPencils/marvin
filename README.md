@@ -38,7 +38,7 @@ Create the `config.json` and `github.json` files and put your specific slack and
 
 **domain** is the subdomain of the slack url used by your company. For example it would be the `mycompany` part of `mycompany.slack.com`
 
-**webhookpath** This will need to be set up in Slack's incoming webhooks integration. If the integration has already been set up you can find the value in Slack settings: `Integrations > Configured Integrations > Incoming WebHooks > #channel > Webhook URL`. Where `#channel` is the slack channel that the webhook is set up to post to..
+**webhookpath** This will need to be set up in Slack's incoming webhooks integration. If the integration has already been set up you can find the value in Slack settings: `Integrations > Configured Integrations > Incoming WebHooks > #channel > Webhook URL`. Where `#channel` is the slack channel that the webhook is set up to post to.
 
 ## github.json
 
