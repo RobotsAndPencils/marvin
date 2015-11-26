@@ -24,7 +24,7 @@ Pull down the latest source code from Github for Marvin and after you should be 
 go get github.com/RobotsAndPencils/marvin
 ```
 
-Create the `config.json` and `github.json` files and put your specific slack and github information into it. 
+Create the `config.json` and `github.json` files and put your specific slack and github information into it. Save these files in the `$GOPATH/src/github.com/RobotsAndPencils/marvin` directory.
 
 ## config.json
 
