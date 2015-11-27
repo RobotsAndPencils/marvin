@@ -106,5 +106,26 @@ func Test(t *testing.T) {
 
 			fmt.Println("Issue count: " + strconv.Itoa(len(issues)))
 		})
+
+		g.It("Should find commits for a repo", func() {
+			commits, err := s.loadCommitsForRepo("RobotsAndPencils", "marvin", "")
+
+			Expect(commits).ToNot(BeNil())
+			Expect(err).To(BeNil())
+		})
+
+		g.It("Should find PR commits for a repo", func() {
+			commits, err := s.loadCommitsFromAllRepoPRs("RobotsAndPencils", "marvin")
+
+			Expect(commits).ToNot(BeNil())
+			Expect(err).To(BeNil())
+		})
+
+		g.It("Should find commits to master", func() {
+			commits, err := s.CommitsToMaster("RobotsAndPencils", "marvin")
+
+			Expect(commits).ToNot(BeNil())
+			Expect(err).To(BeNil())
+		})
 	})
 }
