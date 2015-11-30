@@ -263,8 +263,8 @@ func BuildAttachmentsShowCommits(repoCommits []github.RepositoryCommit, err erro
 					author = "_Unknown_"
 				}
 
-				var title string = "Commit " + (*commit.SHA)[0:7]
-				var description string = "by " + author + " - " + *commit.Commit.Message
+				var title string = (*commit.SHA)[0:7] + " - " + *commit.Commit.Message
+				var description string = commit.Commit.Author.Date.Format("January _2 3:04PM") + " by " + author
 				markdownFields := []MarkdownField{MarkdownFieldTitle, MarkdownFieldText}
 				attachment := &Attachment{
 					Title:      title,
