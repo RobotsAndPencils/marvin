@@ -275,12 +275,6 @@ func BuildAttachmentsShowCommits(repoCommits []github.RepositoryCommit, err erro
 				}
 				attachments = append(attachments, *attachment)
 			}
-		} else {
-			attachment := &Attachment{
-				Text:  "No commits to master were found.",
-				Color: "#A0A0A0",
-			}
-			attachments = append(attachments, *attachment)
 		}
 	} else {
 		attachment := &Attachment{
@@ -293,11 +287,11 @@ func BuildAttachmentsShowCommits(repoCommits []github.RepositoryCommit, err erro
 	return attachments
 }
 
-func BuildAttachmentCommitSummary(repo string, masterCommitCount int, totalCommits int) Attachment {
+func BuildAttachmentCommitSummary(repo string, masterCommitCount int, totalCommits int, days int) Attachment {
 
 	return Attachment{
 		Title: "Commits to master on " + repo,
-		Text:  strconv.Itoa(masterCommitCount) + " of " + strconv.Itoa(totalCommits) + " commits were direct to master",
+		Text:  "There were " + strconv.Itoa(masterCommitCount) + " of " + strconv.Itoa(totalCommits) + " commits directly to master in the last " + strconv.Itoa(days) + " days",
 		Color: "#A0A0A0",
 	}
 }

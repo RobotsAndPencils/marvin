@@ -72,13 +72,14 @@ func (r CommitsToMasterBot) Run(p *Payload) string {
 
 func (r CommitsToMasterBot) DeferredAction(p *Payload) {
 
+	days := 30 //default to last 30 days
 	repo := strings.TrimSpace(p.Text)
 	service := githubservice.New(CommitsToMasterConfig.PersonalAccessToken)
-	commits, totalCommits, err := service.CommitsToMaster(CommitsToMasterConfig.Owner, repo)
-	attachments =: BuildAttachmentsShowCommits(commits, err)
+	commits, totalCommits, err := service.CommitsToMaster(CommitsToMasterConfig.Owner, repo, days)
+	attachments := BuildAttachmentsShowCommits(commits, err)
 
 	var masterCommitCount = len(commits)
-	attachments = append(attachments, BuildAttachmentCommitSummary(repo, masterCommitCount, totalCommits))
+	attachments = append(attachments, BuildAttachmentCommitSummary(repo, masterCommitCount, totalCommits, days))
 
 	// Let's use the IncomingWebhook struct defined in definitions.go to form and send an
 	// IncomingWebhook message to slack that can be seen by everyone in the room. You can

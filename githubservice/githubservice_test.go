@@ -108,21 +108,21 @@ func Test(t *testing.T) {
 		})
 
 		g.It("Should find commits for a repo", func() {
-			commits, err := s.loadCommitsForRepo("RobotsAndPencils", "marvin", "")
+			commits, err := s.loadCommitsForRepo("RobotsAndPencils", "marvin", "", 30)
 
 			Expect(commits).ToNot(BeNil())
 			Expect(err).To(BeNil())
 		})
 
 		g.It("Should find PR commits for a repo", func() {
-			commits, err := s.loadCommitsFromAllRepoPRs("RobotsAndPencils", "marvin")
+			commits, err := s.loadCommitsFromAllRepoPRs("RobotsAndPencils", "marvin", 30)
 
 			Expect(commits).ToNot(BeNil())
 			Expect(err).To(BeNil())
 		})
 
 		g.It("Should find commits to master", func() {
-			commits, total, err := s.CommitsToMaster("RobotsAndPencils", "marvin")
+			commits, total, err := s.CommitsToMaster("RobotsAndPencils", "marvin", 30)
 
 			Expect(commits).ToNot(BeNil())
 			Expect(total).ToNot(BeNil())
