@@ -225,12 +225,7 @@ func (g *GithubService) loadCommitsFromAllRepoPRs(owner string, repo string, day
 			}
 
 			for _, prCommit := range prCommits {
-				timeSinceCommit := time.Now().Sub(*prCommit.Commit.Author.Date).Hours()
-				if timeSinceCommit <= float64(days)*24 {
-					allPRCommits = append(allPRCommits, prCommit)
-				} else {
-					break
-				}
+				allPRCommits = append(allPRCommits, prCommit)
 			}
 
 			if prResp.NextPage == 0 {
