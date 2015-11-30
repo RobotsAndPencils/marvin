@@ -314,12 +314,12 @@ func (g *GithubService) makeIssueList(owner string, repo string, assigned string
 	return sprintIssues, err
 }
 
-func (g *GithubService) makeCommitsList(owner string, repo string, committer string, lambda func(github.RepositoryCommit, []github.RepositoryCommit) bool) ([]github.RepositoryCommit, error) {
+func (g *GithubService) makeCommitsList(owner string, repo string, committer string, lambda func(github.RepositoryCommit, []github.RepositoryCommit) bool) ([]github.RepositoryCommit, int, error) {
 
 	commits, err := g.loadCommitsForRepo(owner, repo, committer)
 
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	var masterCommits []github.RepositoryCommit
@@ -332,7 +332,7 @@ func (g *GithubService) makeCommitsList(owner string, repo string, committer str
 		}
 	}
 
-	return masterCommits, err
+	return masterCommits, len(commits), err
 }
 
 func (g *GithubService) AssignedTo(owner string, repo string, login string) ([]github.Issue, error) {
@@ -372,7 +372,7 @@ func (g *GithubService) OpenPullRequests(owner string, duration int) ([]Reposito
 	return g.loadOpenPRsForOrganization(owner, duration)
 }
 
-func (g *GithubService) CommitsToMaster(owner string, repo string) ([]github.RepositoryCommit, error) {
+func (g *GithubService) CommitsToMaster(owner string, repo string) ([]github.RepositoryCommit, int, error) {
 	return g.makeCommitsList(owner, repo, "", g.isCommitInList)
 }
 

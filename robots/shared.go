@@ -292,3 +292,12 @@ func BuildAttachmentsShowCommits(repoCommits []github.RepositoryCommit, err erro
 
 	return attachments
 }
+
+func BuildAttachmentCommitSummary(repo string, masterCommitCount int, totalCommits int) Attachment {
+
+	return Attachment{
+		Title: "Commits to master on " + repo,
+		Text:  strconv.Itoa(masterCommitCount) + " of " + strconv.Itoa(totalCommits) + " commits were direct to master",
+		Color: "#A0A0A0",
+	}
+}

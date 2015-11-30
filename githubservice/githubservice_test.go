@@ -122,9 +122,10 @@ func Test(t *testing.T) {
 		})
 
 		g.It("Should find commits to master", func() {
-			commits, err := s.CommitsToMaster("RobotsAndPencils", "marvin")
+			commits, total, err := s.CommitsToMaster("RobotsAndPencils", "marvin")
 
 			Expect(commits).ToNot(BeNil())
+			Expect(total).ToNot(BeNil())
 			Expect(err).To(BeNil())
 		})
 	})
