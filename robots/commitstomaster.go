@@ -66,20 +66,34 @@ func (r CommitsToMasterBot) Run(p *Payload) string {
 	go r.DeferredAction(p)
 	// The string returned here will be shown only to the user who executed the command
 	// and will show up as a message from slackbot.
+	repo := strings.TrimSpace(p.Text)
 
-	return "Calculating commits to master for " + p.Text + "..."
+	if repo == "" {
+		return "Calculating commits to master weekly report..."
+	} else {
+		return "Calculating commits to master for " + p.Text + "..."
+	}
+
 }
 
 func (r CommitsToMasterBot) DeferredAction(p *Payload) {
 
 	days := 30 //default to last 30 days
 	repo := strings.TrimSpace(p.Text)
-	service := githubservice.New(CommitsToMasterConfig.PersonalAccessToken)
-	commits, totalCommits, err := service.CommitsToMaster(CommitsToMasterConfig.Owner, repo, days)
-	attachments := BuildAttachmentsShowCommits(commits, err)
+	if repo == "" {
+		days = 7 //when searching all repos use a time box of 7 days
+	}
 
-	var masterCommitCount = len(commits)
-	attachments = append(attachments, BuildAttachmentCommitSummary(repo, masterCommitCount, totalCommits, days))
+	responseText := "Commits to master weekly summary"
+	service := githubservice.New(CommitsToMasterConfig.PersonalAccessToken)
+	reposToCommits, totalCommits, err := service.CommitsToMaster(CommitsToMasterConfig.Owner, repo, days)
+	attachments := BuildAttachmentsShowCommits(reposToCommits, err)
+
+	if repo != "" {
+		responseText = "Commits to master for repo *" + repo + "*"
+		var masterCommitCount = len(reposToCommits[repo])
+		attachments = append(attachments, BuildAttachmentCommitSummary(repo, masterCommitCount, totalCommits, days))
+	}
 
 	// Let's use the IncomingWebhook struct defined in definitions.go to form and send an
 	// IncomingWebhook message to slack that can be seen by everyone in the room. You can
@@ -88,7 +102,7 @@ func (r CommitsToMasterBot) DeferredAction(p *Payload) {
 	response := &IncomingWebhook{
 		Channel:     p.ChannelID,
 		Username:    "Marvin",
-		Text:        "Commits to master for repo *" + p.Text + "*",
+		Text:        responseText,
 		IconEmoji:   ":robot:",
 		UnfurlLinks: true,
 		Parse:       ParseStyleFull,

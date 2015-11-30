@@ -250,30 +250,32 @@ func BuildAttachmentsShowPullRequests(reposWithPRs []githubservice.RepositoryPul
 	return attachments
 }
 
-func BuildAttachmentsShowCommits(repoCommits []github.RepositoryCommit, err error) []Attachment {
+func BuildAttachmentsShowCommits(repos map[string][]github.RepositoryCommit, err error) []Attachment {
 	var attachments []Attachment
 
 	if err == nil {
-		if len(repoCommits) > 0 {
-			for _, commit := range repoCommits {
-				var author string
-				if commit.Author != nil {
-					author = "_" + *commit.Author.Login + "_"
-				} else {
-					author = "_Unknown_"
-				}
+		for repoName, repoCommits := range repos {
+			if len(repoCommits) > 0 {
+				for _, commit := range repoCommits {
+					var author string
+					if commit.Author != nil {
+						author = "_" + *commit.Author.Login + "_"
+					} else {
+						author = "_Unknown_"
+					}
 
-				var title string = (*commit.SHA)[0:7] + " - " + *commit.Commit.Message
-				var description string = commit.Commit.Author.Date.Format("January _2 3:04PM") + " by " + author
-				markdownFields := []MarkdownField{MarkdownFieldTitle, MarkdownFieldText}
-				attachment := &Attachment{
-					Title:      title,
-					TitleLink:  *commit.HTMLURL,
-					Text:       description,
-					Color:      "#ff1010",
-					MarkdownIn: markdownFields,
+					var title string = repoName + "/" + (*commit.SHA)[0:7] + " - " + *commit.Commit.Message
+					var description string = commit.Commit.Author.Date.Format("January _2 3:04PM") + " by " + author
+					markdownFields := []MarkdownField{MarkdownFieldTitle, MarkdownFieldText}
+					attachment := &Attachment{
+						Title:      title,
+						TitleLink:  *commit.HTMLURL,
+						Text:       description,
+						Color:      "#ff1010",
+						MarkdownIn: markdownFields,
+					}
+					attachments = append(attachments, *attachment)
 				}
-				attachments = append(attachments, *attachment)
 			}
 		}
 	} else {
