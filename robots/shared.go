@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"time"
 
@@ -252,9 +253,17 @@ func BuildAttachmentsShowPullRequests(reposWithPRs []githubservice.RepositoryPul
 
 func BuildAttachmentsShowCommits(repos map[string][]github.RepositoryCommit, err error) []Attachment {
 	var attachments []Attachment
+	sortedRepoNames := make([]string, len(repos))
+
+	for repoName := range repos {
+		sortedRepoNames = append(sortedRepoNames, repoName)
+	}
+	sort.Strings(sortedRepoNames)
 
 	if err == nil {
-		for repoName, repoCommits := range repos {
+		for _, repoName := range sortedRepoNames {
+			repoCommits := repos[repoName]
+
 			if len(repoCommits) > 0 {
 				for _, commit := range repoCommits {
 					var author string
