@@ -1,12 +1,11 @@
 package githubservice
 
 import (
-	"strings"
-
 	"github.com/google/go-github/github"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -98,6 +97,35 @@ func (g *GithubService) loadIssuesForRepo(owner string, repo string, assigned st
 	return allIssues, e
 }
 
+func (g *GithubService) loadCommitsForRepo(owner string, repo string, committer string, days int) ([]github.RepositoryCommit, error) {
+	var client = g.obtainAuthenticatedGithubClient()
+	var allCommits []github.RepositoryCommit
+	var e error
+	opt := &github.CommitsListOptions{
+		Since:       time.Now().AddDate(0, 0, -days),
+		ListOptions: github.ListOptions{PerPage: 500},
+	}
+
+	for {
+		repositoryCommits, resp, err := client.Repositories.ListCommits(owner, repo, opt)
+
+		if err != nil {
+			e = err
+			break
+		}
+
+		allCommits = append(allCommits, repositoryCommits...)
+
+		if resp.NextPage == 0 {
+			break
+		}
+
+		opt.ListOptions.Page = resp.NextPage
+	}
+
+	return allCommits, e
+}
+
 func (g *GithubService) loadReposForOrganization(owner string) ([]github.Repository, error) {
 	var client = g.obtainAuthenticatedGithubClient()
 	var allRepos []github.Repository
@@ -156,6 +184,57 @@ func (g *GithubService) loadPRsForRepo(owner string, repo string) ([]github.Pull
 	}
 
 	return allPRs, e
+}
+
+func (g *GithubService) loadCommitsFromAllRepoPRs(owner string, repo string, days int) ([]github.RepositoryCommit, error) {
+	var client = g.obtainAuthenticatedGithubClient()
+	var allPRCommits []github.RepositoryCommit
+	var e error
+	opt := &github.PullRequestListOptions{
+		State:       "open,closed",
+		ListOptions: github.ListOptions{PerPage: 100},
+	}
+
+	for {
+		pullRequests, resp, err := client.PullRequests.List(owner, repo, opt)
+		if err != nil {
+			e = err
+			break
+		}
+
+		for _, pullRequest := range pullRequests {
+			prOpt := &github.ListOptions{
+				PerPage: 100,
+			}
+			prCommits, prResp, err := client.PullRequests.ListCommits(owner, repo, *pullRequest.Number, prOpt)
+
+			if err != nil {
+				e = err
+				continue
+			}
+
+			for _, prCommit := range prCommits {
+				timeSince := time.Now().Sub(*prCommit.Commit.Author.Date).Hours()
+				if timeSince <= float64(days)*24 {
+					allPRCommits = append(allPRCommits, prCommit)
+				}
+			}
+
+			if prResp.NextPage == 0 {
+				continue
+			}
+
+			prOpt.Page = prResp.NextPage
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+
+		opt.ListOptions.Page = resp.NextPage
+	}
+
+	return allPRCommits, e
 }
 
 func (g *GithubService) loadActiveReposForOrganization(owner string, days int) ([]github.Repository, error) {
@@ -240,6 +319,27 @@ func (g *GithubService) makeIssueList(owner string, repo string, assigned string
 	return sprintIssues, err
 }
 
+func (g *GithubService) makeCommitsList(owner string, repo string, committer string, lambda func(github.RepositoryCommit, []github.RepositoryCommit) bool, days int) ([]github.RepositoryCommit, int, error) {
+
+	commits, err := g.loadCommitsForRepo(owner, repo, committer, days)
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var masterCommits []github.RepositoryCommit
+	allPRCommits, err := g.loadCommitsFromAllRepoPRs(owner, repo, days)
+	for _, commit := range commits {
+		// Do not include merge commits
+		// Only include commits that are not part of a PR
+		if len(commit.Parents) <= 1 && !lambda(commit, allPRCommits) {
+			masterCommits = append(masterCommits, commit)
+		}
+	}
+
+	return masterCommits, len(commits), err
+}
+
 func (g *GithubService) AssignedTo(owner string, repo string, login string) ([]github.Issue, error) {
 	if repo == "*" {
 		return g.loadIssuesForAssignee(owner, login)
@@ -275,6 +375,10 @@ func (g *GithubService) ReadyForReview(owner string, repo string) ([]github.Issu
 
 func (g *GithubService) OpenPullRequests(owner string, duration int) ([]RepositoryPullRequest, error) {
 	return g.loadOpenPRsForOrganization(owner, duration)
+}
+
+func (g *GithubService) CommitsToMaster(owner string, repo string, days int) ([]github.RepositoryCommit, int, error) {
+	return g.makeCommitsList(owner, repo, "", g.isCommitInList, days)
 }
 
 func (g *GithubService) getLabelString(labels []github.Label) string {
@@ -331,4 +435,15 @@ func (g *GithubService) isQAPass(issue github.Issue) bool {
 func (g *GithubService) isDone(issue github.Issue) bool {
 	label := g.getLabelString(issue.Labels)
 	return strings.Contains(label, "done")
+}
+
+func (g *GithubService) isCommitInList(commit github.RepositoryCommit, commitList []github.RepositoryCommit) bool {
+
+	for _, listCommit := range commitList {
+		if *commit.SHA == *listCommit.SHA {
+			return true
+		}
+	}
+
+	return false
 }

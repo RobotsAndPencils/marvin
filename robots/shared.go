@@ -249,3 +249,49 @@ func BuildAttachmentsShowPullRequests(reposWithPRs []githubservice.RepositoryPul
 
 	return attachments
 }
+
+func BuildAttachmentsShowCommits(repoCommits []github.RepositoryCommit, err error) []Attachment {
+	var attachments []Attachment
+
+	if err == nil {
+		if len(repoCommits) > 0 {
+			for _, commit := range repoCommits {
+				var author string
+				if commit.Author != nil {
+					author = "_" + *commit.Author.Login + "_"
+				} else {
+					author = "_Unknown_"
+				}
+
+				var title string = (*commit.SHA)[0:7] + " - " + *commit.Commit.Message
+				var description string = commit.Commit.Author.Date.Format("January _2 3:04PM") + " by " + author
+				markdownFields := []MarkdownField{MarkdownFieldTitle, MarkdownFieldText}
+				attachment := &Attachment{
+					Title:      title,
+					TitleLink:  *commit.HTMLURL,
+					Text:       description,
+					Color:      "#ff1010",
+					MarkdownIn: markdownFields,
+				}
+				attachments = append(attachments, *attachment)
+			}
+		}
+	} else {
+		attachment := &Attachment{
+			Text:  "Error: " + err.Error(),
+			Color: "#ff0000",
+		}
+		attachments = append(attachments, *attachment)
+	}
+
+	return attachments
+}
+
+func BuildAttachmentCommitSummary(repo string, masterCommitCount int, totalCommits int, days int) Attachment {
+
+	return Attachment{
+		Title: "Commits to master on " + repo,
+		Text:  "There were " + strconv.Itoa(masterCommitCount) + " of " + strconv.Itoa(totalCommits) + " commits directly to master in the last " + strconv.Itoa(days) + " days",
+		Color: "#A0A0A0",
+	}
+}
