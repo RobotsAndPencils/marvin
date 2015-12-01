@@ -128,5 +128,13 @@ func Test(t *testing.T) {
 			Expect(total).ToNot(BeNil())
 			Expect(err).To(BeNil())
 		})
+
+		g.It("Commits to master for all repos", func() {
+			commits, total, err := s.CommitsToMaster("RobotsAndPencils", "", 7)
+
+			Expect(commits).ToNot(BeNil())
+			Expect(total).ToNot(BeNil())
+			Expect(err).To(BeNil())
+		})
 	})
 }

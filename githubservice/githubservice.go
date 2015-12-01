@@ -195,6 +195,8 @@ func (g *GithubService) loadCommitsFromAllRepoPRs(owner string, repo string, day
 		ListOptions: github.ListOptions{PerPage: 100},
 	}
 
+	remainingPRsAreOlder := false
+
 	for {
 		pullRequests, resp, err := client.PullRequests.List(owner, repo, opt)
 		if err != nil {
@@ -203,6 +205,15 @@ func (g *GithubService) loadCommitsFromAllRepoPRs(owner string, repo string, day
 		}
 
 		for _, pullRequest := range pullRequests {
+
+			timeSincePRCreated := time.Now().Sub(*pullRequest.CreatedAt).Hours()
+
+			if timeSincePRCreated > float64(days)*24 {
+				//PR is older than time box. Assuming a sorted list it is safe to stop processing.
+				remainingPRsAreOlder = true
+				break
+			}
+
 			prOpt := &github.ListOptions{
 				PerPage: 100,
 			}
@@ -214,10 +225,7 @@ func (g *GithubService) loadCommitsFromAllRepoPRs(owner string, repo string, day
 			}
 
 			for _, prCommit := range prCommits {
-				timeSince := time.Now().Sub(*prCommit.Commit.Author.Date).Hours()
-				if timeSince <= float64(days)*24 {
-					allPRCommits = append(allPRCommits, prCommit)
-				}
+				allPRCommits = append(allPRCommits, prCommit)
 			}
 
 			if prResp.NextPage == 0 {
@@ -227,7 +235,7 @@ func (g *GithubService) loadCommitsFromAllRepoPRs(owner string, repo string, day
 			prOpt.Page = prResp.NextPage
 		}
 
-		if resp.NextPage == 0 {
+		if resp.NextPage == 0 || remainingPRsAreOlder {
 			break
 		}
 
@@ -319,16 +327,56 @@ func (g *GithubService) makeIssueList(owner string, repo string, assigned string
 	return sprintIssues, err
 }
 
-func (g *GithubService) makeCommitsList(owner string, repo string, committer string, lambda func(github.RepositoryCommit, []github.RepositoryCommit) bool, days int) ([]github.RepositoryCommit, int, error) {
+func (g *GithubService) makeCommitsList(owner string, repo string, committer string, lambda func(github.RepositoryCommit, []github.RepositoryCommit) bool, days int) (map[string][]github.RepositoryCommit, int, error) {
 
+	totalCommits := 0
+	repoToMasterCommits := make(map[string][]github.RepositoryCommit)
+
+	if repo == "" {
+		//summary of commits from all repos
+		repositories, err := g.loadActiveReposForOrganization(owner, days)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		for _, repository := range repositories {
+			repoName := *repository.Name
+			masterCommits, totalRepoCommits, err := g.masterCommitsForSingleRepo(owner, repoName, committer, lambda, days)
+
+			if err != nil {
+				return nil, 0, err
+			}
+
+			if len(masterCommits) > 0 {
+				repoToMasterCommits[repoName] = masterCommits
+				totalCommits += totalRepoCommits
+			}
+		}
+	} else {
+		//single repo query
+		masterCommits, totalRepoCommits, err := g.masterCommitsForSingleRepo(owner, repo, committer, lambda, days)
+
+		if err != nil {
+			return nil, 0, err
+		}
+
+		repoToMasterCommits[repo] = masterCommits
+		totalCommits += totalRepoCommits
+	}
+
+	return repoToMasterCommits, totalCommits, nil
+}
+
+func (g *GithubService) masterCommitsForSingleRepo(owner string, repo string, committer string, lambda func(github.RepositoryCommit, []github.RepositoryCommit) bool, days int) ([]github.RepositoryCommit, int, error) {
 	commits, err := g.loadCommitsForRepo(owner, repo, committer, days)
+	allPRCommits, err := g.loadCommitsFromAllRepoPRs(owner, repo, days)
 
 	if err != nil {
 		return nil, 0, err
 	}
 
-	var masterCommits []github.RepositoryCommit
-	allPRCommits, err := g.loadCommitsFromAllRepoPRs(owner, repo, days)
+	masterCommits := make([]github.RepositoryCommit, 0)
+
 	for _, commit := range commits {
 		// Do not include merge commits
 		// Only include commits that are not part of a PR
@@ -377,7 +425,7 @@ func (g *GithubService) OpenPullRequests(owner string, duration int) ([]Reposito
 	return g.loadOpenPRsForOrganization(owner, duration)
 }
 
-func (g *GithubService) CommitsToMaster(owner string, repo string, days int) ([]github.RepositoryCommit, int, error) {
+func (g *GithubService) CommitsToMaster(owner string, repo string, days int) (map[string][]github.RepositoryCommit, int, error) {
 	return g.makeCommitsList(owner, repo, "", g.isCommitInList, days)
 }
 
