@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/RobotsAndPencils/marvin/githubservice"
@@ -84,15 +85,16 @@ func (r CommitsToMasterBot) DeferredAction(p *Payload) {
 		days = 7 //when searching all repos use a time box of 7 days
 	}
 
-	responseText := "Commits to master weekly summary"
+	responseText := "Commits to master in the last " + strconv.Itoa(days) + " days"
 	service := githubservice.New(CommitsToMasterConfig.PersonalAccessToken)
-	reposToCommits, totalCommits, err := service.CommitsToMaster(CommitsToMasterConfig.Owner, repo, days)
-	attachments := BuildAttachmentsShowCommits(reposToCommits, err)
+	reposToCommits, _, err := service.CommitsToMaster(CommitsToMasterConfig.Owner, repo, days)
+	var attachments []Attachment
 
 	if repo != "" {
-		responseText = "Commits to master for repo *" + repo + "*"
-		var masterCommitCount = len(reposToCommits[repo])
-		attachments = append(attachments, BuildAttachmentCommitSummary(repo, masterCommitCount, totalCommits, days))
+		responseText = "Commits to master for repo *" + repo + "* in the last " + strconv.Itoa(days) + " days"
+		attachments = BuildAttachmentsShowCommits(reposToCommits, err)
+	} else {
+		attachments = BuildAttachmentCommitSummaryByRepo(reposToCommits, CommitsToMasterConfig.Owner, days)
 	}
 
 	// Let's use the IncomingWebhook struct defined in definitions.go to form and send an

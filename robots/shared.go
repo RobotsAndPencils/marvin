@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/RobotsAndPencils/marvin/githubservice"
@@ -298,11 +299,40 @@ func BuildAttachmentsShowCommits(repos map[string][]github.RepositoryCommit, err
 	return attachments
 }
 
-func BuildAttachmentCommitSummary(repo string, masterCommitCount int, totalCommits int, days int) Attachment {
+func BuildAttachmentCommitSummaryByRepo(reposToCommits map[string][]github.RepositoryCommit, owner string, days int) []Attachment {
+	var attachments []Attachment
 
-	return Attachment{
-		Title: "Commits to master on " + repo,
-		Text:  "There were " + strconv.Itoa(masterCommitCount) + " of " + strconv.Itoa(totalCommits) + " commits directly to master in the last " + strconv.Itoa(days) + " days",
-		Color: "#A0A0A0",
+	for repoName, commitsToMaster := range reposToCommits {
+		var commitList []string
+		for _, commit := range commitsToMaster {
+			commitList = append(commitList, (*commit.SHA)[0:7])
+		}
+		commitListString := strings.Join(commitList, ", ")
+		commitWording := "commits"
+		if len(commitList) == 1 {
+			commitWording = "commit"
+		}
+		attachment := &Attachment{
+			Title:      repoName,
+			TitleLink:  "https://www.github.com/" + owner + "/" + repoName + "/commits/master",
+			Text:       strconv.Itoa(len(commitList)) + " " + commitWording + ": " + commitListString,
+			Color:      colorForMasterCommitCount(len(commitList)),
+			MarkdownIn: []MarkdownField{MarkdownFieldText},
+		}
+		attachments = append(attachments, *attachment)
+	}
+
+	return attachments
+}
+
+func colorForMasterCommitCount(commitCount int) string {
+	if commitCount > 10 {
+		return "#FF1010"
+	} else if commitCount > 5 {
+		return "#FF7222"
+	} else if commitCount > 0 {
+		return "#FFD334"
+	} else {
+		return "#A0A0A0"
 	}
 }
