@@ -114,6 +114,8 @@ You need to create a bunch of Slack Slash commands, each pointing at the same UR
 /readyforqa [repo]
 /qapass [repo]
 /assigned [repo|*] [login]
+/openpullrequests [repo]
+/commitstomaster [repo]
 ```
 
 The URL you need to configure will be `https://herokudomain.herokuapp.com/slack`.
