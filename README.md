@@ -114,7 +114,7 @@ You need to create a bunch of Slack Slash commands, each pointing at the same UR
 /readyforqa [repo]
 /qapass [repo]
 /assigned [repo|*] [login]
-/openpullrequests [days]
+/openpullrequests [daysPROpen] [daysSinceLastProjectActivity]
 /commitstomaster [repo]
 ```
 

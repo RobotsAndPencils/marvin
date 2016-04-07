@@ -4,6 +4,7 @@ import (
 	"github.com/google/go-github/github"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
+	"log"
 	"sort"
 	"strings"
 	"time"
@@ -265,11 +266,11 @@ func (g *GithubService) loadActiveReposForOrganization(owner string, days int) (
 	return activeRepos, e
 }
 
-func (g *GithubService) loadOpenPRsForOrganization(owner string, days int) ([]RepositoryPullRequest, error) {
+func (g *GithubService) loadOpenPRsForOrganization(owner string, daysPROpen int, daysSinceLastProjectActivity int) ([]RepositoryPullRequest, error) {
 	var activeRepos []github.Repository
 	var e error
 
-	activeRepos, err := g.loadActiveReposForOrganization(owner, days)
+	activeRepos, err := g.loadActiveReposForOrganization(owner, daysSinceLastProjectActivity)
 	if err != nil {
 		e = err
 	}
@@ -281,8 +282,22 @@ func (g *GithubService) loadOpenPRsForOrganization(owner string, days int) ([]Re
 			e = err
 			break
 		}
-		if len(pullRequests) > 0 {
-			repoWithPRs := RepositoryPullRequest{repo, pullRequests}
+
+		var validPullRequests []github.PullRequest
+		for _, pullRequest := range pullRequests {
+			var numberOfDays = time.Since(*pullRequest.CreatedAt).Hours() / 24
+			if numberOfDays < float64(daysPROpen) {
+				log.Printf("Skipping PR open for %f days", numberOfDays)
+				break // These PRs are too new for us to care about
+			} else {
+				log.Printf("Adding PR open for %f days", numberOfDays)
+				validPullRequests = append(validPullRequests, pullRequest)
+			}
+		}
+
+		if len(validPullRequests) > 0 {
+			log.Printf("Adding %d PRs to set", len(validPullRequests))
+			repoWithPRs := RepositoryPullRequest{repo, validPullRequests}
 			allReposWithPRs = append(allReposWithPRs, repoWithPRs)
 		}
 	}
@@ -421,8 +436,8 @@ func (g *GithubService) ReadyForReview(owner string, repo string) ([]github.Issu
 	return g.makeIssueList(owner, repo, "", g.isReadyForReview)
 }
 
-func (g *GithubService) OpenPullRequests(owner string, duration int) ([]RepositoryPullRequest, error) {
-	return g.loadOpenPRsForOrganization(owner, duration)
+func (g *GithubService) OpenPullRequests(owner string, daysPROpen int, daysSinceLastProjectActivity int) ([]RepositoryPullRequest, error) {
+	return g.loadOpenPRsForOrganization(owner, daysPROpen, daysSinceLastProjectActivity)
 }
 
 func (g *GithubService) CommitsToMaster(owner string, repo string, days int) (map[string][]github.RepositoryCommit, int, error) {
