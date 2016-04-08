@@ -105,7 +105,7 @@ func (r OpenPullRequestsBot) DeferredAction(p *Payload) {
 
 	attachments := BuildAttachmentsShowPullRequests(pullRequests, err)
 
-	var text string = "Pull requests *open for more than " + strconv.Itoa(daysPROpen) + " day(s)*"
+	var text string = "Pull requests open for more than " + strconv.Itoa(daysPROpen) + " days in projects with activity in the last " + strconv.Itoa(daysSinceLastProjectActivity) + " days..."
 
 	// Let's use the IncomingWebhook struct defined in definitions.go to form and send an
 	// IncomingWebhook message to slack that can be seen by everyone in the room. You can
