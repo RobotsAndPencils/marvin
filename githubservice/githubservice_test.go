@@ -29,7 +29,7 @@ func Test(t *testing.T) {
 		})
 
 		g.It("Should find open pull requests for active repos in RobotsAndPencils", func() {
-			pullRequests, err := s.loadOpenPRsForOrganization("RobotsAndPencils", daysOfActivity)
+			pullRequests, err := s.loadOpenPRsForOrganization("RobotsAndPencils", daysOfActivity, daysOfActivity)
 
 			Expect(pullRequests).ToNot(BeNil())
 			Expect(err).To(BeNil())

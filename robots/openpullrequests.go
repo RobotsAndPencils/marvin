@@ -60,10 +60,27 @@ func loadOpenPullRequestsConfigFromFile() {
 	}
 }
 
-func (r OpenPullRequestsBot) parsePayload(p *Payload) (duration string) {
+func (r OpenPullRequestsBot) parsePayload(p *Payload) (daysPROpen int, projectLastActiveDays int) {
 	output := strings.Split(strings.TrimSpace(p.Text), " ")
-	log.Printf("Output=" + output[0])
-	return output[0]
+
+	var err error
+	var validDaysPROpen int = 1
+	if len(output) >= 1 {
+		validDaysPROpen, err = strconv.Atoi(output[0])
+		if err != nil {
+			validDaysPROpen = 1 // Defaults to being open longer than 1 day
+		}
+	}
+
+	var validDaysSinceLastProjectActivity int = 30
+	if len(output) >= 2 {
+		validDaysSinceLastProjectActivity, err = strconv.Atoi(output[1])
+		if err != nil {
+			validDaysSinceLastProjectActivity = 30 // Defaults to projects with activity in the last 30 days
+		}
+	}
+
+	return validDaysPROpen, validDaysSinceLastProjectActivity
 }
 
 // All Robots must implement a Run command to be executed when the registered command is received.
@@ -71,25 +88,24 @@ func (r OpenPullRequestsBot) Run(p *Payload) string {
 	// If you (optionally) want to do some asynchronous work (like sending API calls to slack)
 	// you can put it in a go routine like this
 	go r.DeferredAction(p)
+
+	daysPROpen, daysSinceLastProjectActivity := r.parsePayload(p)
+
 	// The string returned here will be shown only to the user who executed the command
 	// and will show up as a message from slackbot.
-	return "Calculating open pull requests that have been open for more than 1 day..."
+	return "Finding pull requests that have been open longer than " + strconv.Itoa(daysPROpen) + " days in projects with activity in the last " + strconv.Itoa(daysSinceLastProjectActivity) + " days..."
 }
 
 func (r OpenPullRequestsBot) DeferredAction(p *Payload) {
 
-	duration := r.parsePayload(p)
-	validDurationInDays, err := strconv.Atoi(duration)
-	if err != nil {
-		validDurationInDays = 30 // If the project hasn't been updated in that time frame then we don't care
-	}
+	daysPROpen, daysSinceLastProjectActivity := r.parsePayload(p)
 
 	service := githubservice.New(OpenPullRequestsConfig.PersonalAccessToken)
-	pullRequests, err := service.OpenPullRequests(OpenPullRequestsConfig.Owner, validDurationInDays)
+	pullRequests, err := service.OpenPullRequests(OpenPullRequestsConfig.Owner, daysPROpen, daysSinceLastProjectActivity)
 
 	attachments := BuildAttachmentsShowPullRequests(pullRequests, err)
 
-	var text string = "Pull requests *open for more than 1 day*"
+	var text string = "Pull requests open for more than " + strconv.Itoa(daysPROpen) + " days in projects with activity in the last " + strconv.Itoa(daysSinceLastProjectActivity) + " days..."
 
 	// Let's use the IncomingWebhook struct defined in definitions.go to form and send an
 	// IncomingWebhook message to slack that can be seen by everyone in the room. You can
