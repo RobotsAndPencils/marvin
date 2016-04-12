@@ -24,6 +24,15 @@ var Robots = make(map[string]Robot)
 var Config = new(Configuration)
 var ConfigDirectory = flag.String("c", ".", "Configuration directory (default .)")
 
+// CaseInsensitiveSorter sorts String.
+type CaseInsensitiveSorter []string
+
+func (a CaseInsensitiveSorter) Len() int      { return len(a) }
+func (a CaseInsensitiveSorter) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a CaseInsensitiveSorter) Less(i, j int) bool {
+	return strings.ToLower(a[i]) < strings.ToLower(a[j])
+}
+
 func init() {
 
 	// Try to load the configuration from the environment and fall back to files in the filesystem
@@ -296,8 +305,17 @@ func BuildAttachmentsShowCommits(repos map[string][]github.RepositoryCommit, err
 func BuildAttachmentCommitSummaryByRepo(reposToCommits map[string][]github.RepositoryCommit, owner string, days int) []Attachment {
 	var attachments []Attachment
 
-	for repoName, commitsToMaster := range reposToCommits {
+	//Sort list by RepoName
+	repos := make([]string, 0, len(reposToCommits))
+	for key := range reposToCommits {
+		repos = append(repos, key)
+	}
+	sort.Sort(CaseInsensitiveSorter(repos))
+
+	for _, repoName := range repos {
 		var commitList []string
+		commitsToMaster := reposToCommits[repoName]
+
 		for _, commit := range commitsToMaster {
 			commitList = append(commitList, (*commit.SHA)[0:7])
 		}
