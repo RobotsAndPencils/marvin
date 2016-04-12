@@ -98,12 +98,12 @@ func (g *GithubService) loadIssuesForRepo(owner string, repo string, assigned st
 	return allIssues, e
 }
 
-func (g *GithubService) loadCommitsForRepo(owner string, repo string, committer string, days int) ([]github.RepositoryCommit, error) {
+func (g *GithubService) loadCommitsForRepo(owner string, repo string, committer string, timeLimit time.Time) ([]github.RepositoryCommit, error) {
 	var client = g.obtainAuthenticatedGithubClient()
 	var allCommits []github.RepositoryCommit
 	var e error
 	opt := &github.CommitsListOptions{
-		Since:       time.Now().AddDate(0, 0, -days),
+		Since:       timeLimit,
 		ListOptions: github.ListOptions{PerPage: 500},
 	}
 
@@ -187,7 +187,7 @@ func (g *GithubService) loadPRsForRepo(owner string, repo string) ([]github.Pull
 	return allPRs, e
 }
 
-func (g *GithubService) loadCommitsFromAllRepoPRs(owner string, repo string, days int) ([]github.RepositoryCommit, error) {
+func (g *GithubService) loadCommitsFromAllRepoPRs(owner string, repo string, timeLimit time.Time) ([]github.RepositoryCommit, error) {
 	var client = g.obtainAuthenticatedGithubClient()
 	var allPRCommits []github.RepositoryCommit
 	var e error
@@ -199,7 +199,6 @@ func (g *GithubService) loadCommitsFromAllRepoPRs(owner string, repo string, day
 	}
 
 	remainingPRsAreOlder := false
-	daysAsHours := float64(days) * 24
 
 	for {
 		pullRequests, resp, err := client.PullRequests.List(owner, repo, opt)
@@ -210,10 +209,7 @@ func (g *GithubService) loadCommitsFromAllRepoPRs(owner string, repo string, day
 
 		for _, pullRequest := range pullRequests {
 
-			timeSincePRCreated := time.Now().Sub(*pullRequest.CreatedAt).Hours()
-			timeSincePRLastUpdated := time.Now().Sub(*pullRequest.UpdatedAt).Hours()
-
-			if timeSincePRCreated > daysAsHours && timeSincePRLastUpdated > daysAsHours {
+			if timeLimit.After(*pullRequest.CreatedAt) && timeLimit.After(*pullRequest.UpdatedAt) {
 				//PR is older than time box. Assuming a sorted list it is safe to stop processing.
 				remainingPRsAreOlder = true
 				break
@@ -384,8 +380,11 @@ func (g *GithubService) makeCommitsList(owner string, repo string, committer str
 }
 
 func (g *GithubService) masterCommitsForSingleRepo(owner string, repo string, committer string, lambda func(github.RepositoryCommit, []github.RepositoryCommit) bool, days int) ([]github.RepositoryCommit, int, error) {
-	commits, err := g.loadCommitsForRepo(owner, repo, committer, days)
-	allPRCommits, err := g.loadCommitsFromAllRepoPRs(owner, repo, days)
+
+	var timeLimit = time.Now().AddDate(0, 0, -days)
+
+	commits, err := g.loadCommitsForRepo(owner, repo, committer, timeLimit)
+	allPRCommits, err := g.loadCommitsFromAllRepoPRs(owner, repo, timeLimit)
 
 	if err != nil {
 		return nil, 0, err
