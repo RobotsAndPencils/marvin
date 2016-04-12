@@ -13,8 +13,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
+	"path"
 )
 
 // RepositoryContent represents a file or directory in a github repository.
@@ -24,11 +26,15 @@ type RepositoryContent struct {
 	Size     *int    `json:"size,omitempty"`
 	Name     *string `json:"name,omitempty"`
 	Path     *string `json:"path,omitempty"`
-	Content  *string `json:"content,omitempty"`
-	SHA      *string `json:"sha,omitempty"`
-	URL      *string `json:"url,omitempty"`
-	GitURL   *string `json:"giturl,omitempty"`
-	HTMLURL  *string `json:"htmlurl,omitempty"`
+	// Content contains the actual file content, which may be encoded.
+	// Callers should call GetContent which will decode the content if
+	// necessary.
+	Content     *string `json:"content,omitempty"`
+	SHA         *string `json:"sha,omitempty"`
+	URL         *string `json:"url,omitempty"`
+	GitURL      *string `json:"git_url,omitempty"`
+	HTMLURL     *string `json:"html_url,omitempty"`
+	DownloadURL *string `json:"download_url,omitempty"`
 }
 
 // RepositoryContentResponse holds the parsed response from CreateFile, UpdateFile, and DeleteFile.
@@ -40,7 +46,7 @@ type RepositoryContentResponse struct {
 // RepositoryContentFileOptions specifies optional parameters for CreateFile, UpdateFile, and DeleteFile.
 type RepositoryContentFileOptions struct {
 	Message   *string       `json:"message,omitempty"`
-	Content   []byte        `json:"content,omitempty"`
+	Content   []byte        `json:"content,omitempty"` // unencoded
 	SHA       *string       `json:"sha,omitempty"`
 	Branch    *string       `json:"branch,omitempty"`
 	Author    *CommitAuthor `json:"author,omitempty"`
@@ -53,11 +59,14 @@ type RepositoryContentGetOptions struct {
 	Ref string `url:"ref,omitempty"`
 }
 
+// String converts RepositoryContent to a string. It's primarily for testing.
 func (r RepositoryContent) String() string {
 	return Stringify(r)
 }
 
 // Decode decodes the file content if it is base64 encoded.
+//
+// Deprecated: Use GetContent instead.
 func (r *RepositoryContent) Decode() ([]byte, error) {
 	if *r.Encoding != "base64" {
 		return nil, errors.New("cannot decode non-base64")
@@ -67,6 +76,27 @@ func (r *RepositoryContent) Decode() ([]byte, error) {
 		return nil, err
 	}
 	return o, nil
+}
+
+// GetContent returns the content of r, decoding it if necessary.
+func (r *RepositoryContent) GetContent() (string, error) {
+	var encoding string
+	if r.Encoding != nil {
+		encoding = *r.Encoding
+	}
+
+	switch encoding {
+	case "base64":
+		c, err := base64.StdEncoding.DecodeString(*r.Content)
+		return string(c), err
+	case "":
+		if r.Content == nil {
+			return "", nil
+		}
+		return *r.Content, nil
+	default:
+		return "", fmt.Errorf("unsupported content encoding: %v", encoding)
+	}
 }
 
 // GetReadme gets the Readme file for the repository.
@@ -90,6 +120,32 @@ func (s *RepositoriesService) GetReadme(owner, repo string, opt *RepositoryConte
 	return readme, resp, err
 }
 
+// DownloadContents returns an io.ReadCloser that reads the contents of the
+// specified file. This function will work with files of any size, as opposed
+// to GetContents which is limited to 1 Mb files. It is the caller's
+// responsibility to close the ReadCloser.
+func (s *RepositoriesService) DownloadContents(owner, repo, filepath string, opt *RepositoryContentGetOptions) (io.ReadCloser, error) {
+	dir := path.Dir(filepath)
+	filename := path.Base(filepath)
+	_, dirContents, _, err := s.GetContents(owner, repo, dir, opt)
+	if err != nil {
+		return nil, err
+	}
+	for _, contents := range dirContents {
+		if *contents.Name == filename {
+			if contents.DownloadURL == nil || *contents.DownloadURL == "" {
+				return nil, fmt.Errorf("No download link found for %s", filepath)
+			}
+			resp, err := s.client.client.Get(*contents.DownloadURL)
+			if err != nil {
+				return nil, err
+			}
+			return resp.Body, nil
+		}
+	}
+	return nil, fmt.Errorf("No file named %s found in %s", filename, dir)
+}
+
 // GetContents can return either the metadata and content of a single file
 // (when path references a file) or the metadata of all the files and/or
 // subdirectories of a directory (when path references a directory). To make it
@@ -98,9 +154,9 @@ func (s *RepositoriesService) GetReadme(owner, repo string, opt *RepositoryConte
 // value and the other will be nil.
 //
 // GitHub API docs: http://developer.github.com/v3/repos/contents/#get-contents
-func (s *RepositoriesService) GetContents(owner, repo, path string, opt *RepositoryContentGetOptions) (fileContent *RepositoryContent,
-	directoryContent []*RepositoryContent, resp *Response, err error) {
-	u := fmt.Sprintf("repos/%s/%s/contents/%s", owner, repo, path)
+func (s *RepositoriesService) GetContents(owner, repo, path string, opt *RepositoryContentGetOptions) (fileContent *RepositoryContent, directoryContent []*RepositoryContent, resp *Response, err error) {
+	escapedPath := (&url.URL{Path: path}).String()
+	u := fmt.Sprintf("repos/%s/%s/contents/%s", owner, repo, escapedPath)
 	u, err = addOptions(u, opt)
 	if err != nil {
 		return nil, nil, nil, err

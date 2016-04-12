@@ -1,6 +1,7 @@
 {
 	"ImportPath": "github.com/RobotsAndPencils/marvin",
 	"GoVersion": "go1.4.2",
+	"GodepVersion": "v62",
 	"Deps": [
 		{
 			"ImportPath": "github.com/franela/goblin",
@@ -9,7 +10,7 @@
 		},
 		{
 			"ImportPath": "github.com/google/go-github/github",
-			"Rev": "2431923100d4989611dcc339f1ff8d280bd9c84c"
+			"Rev": "7f154f4cabd28c7b5962c37a5f59bb813ae3791a"
 		},
 		{
 			"ImportPath": "github.com/google/go-querystring/query",
