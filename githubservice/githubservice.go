@@ -193,6 +193,8 @@ func (g *GithubService) loadCommitsFromAllRepoPRs(owner string, repo string, day
 	var e error
 	opt := &github.PullRequestListOptions{
 		State:       "open,closed",
+		Sort:        "updated",
+		Direction:   "desc",
 		ListOptions: github.ListOptions{PerPage: 100},
 	}
 
@@ -208,8 +210,9 @@ func (g *GithubService) loadCommitsFromAllRepoPRs(owner string, repo string, day
 		for _, pullRequest := range pullRequests {
 
 			timeSincePRCreated := time.Now().Sub(*pullRequest.CreatedAt).Hours()
+			timeSincePRLastUpdated := time.Now().Sub(*pullRequest.UpdatedAt).Hours()
 
-			if timeSincePRCreated > float64(days)*24 {
+			if timeSincePRCreated > float64(days)*24 && timeSincePRLastUpdated > float64(days)*24 {
 				//PR is older than time box. Assuming a sorted list it is safe to stop processing.
 				remainingPRsAreOlder = true
 				break
