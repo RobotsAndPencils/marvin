@@ -20,8 +20,13 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
+// Robots is a slice variable
 var Robots = make(map[string]Robot)
+
+// Config is a variable with Configuration allocated
 var Config = new(Configuration)
+
+// ConfigDirectory variable uses the flag package to define an arg named c and type string
 var ConfigDirectory = flag.String("c", ".", "Configuration directory (default .)")
 
 // CaseInsensitiveSorter sorts String.
@@ -74,6 +79,7 @@ func loadConfigFromFile() {
 
 }
 
+// RegisterRobot is responsible for storing the commands of the robots
 func RegisterRobot(command string, r Robot) {
 	if _, ok := Robots[command]; ok {
 		log.Printf("There are two robots mapped to %s!", command)
@@ -83,6 +89,7 @@ func RegisterRobot(command string, r Robot) {
 	}
 }
 
+// Send is the method that does the request to the Slack hooks
 func (i *IncomingWebhook) Send() error {
 	webhook := url.URL{
 		Scheme: "https",
@@ -106,13 +113,18 @@ func (i *IncomingWebhook) Send() error {
 		message := fmt.Sprintf("ERROR: Non-200 Response from Slack Incoming Webhook API: %s", resp.Status)
 		log.Println(message)
 	}
+
+	defer resp.Body.Close()
+
 	return err
 }
 
+// BuildAttachments is a method that encapsulates the BuildAttachmentsShowRepo method
 func BuildAttachments(issues []github.Issue, err error) []Attachment {
 	return BuildAttachmentsShowRepo(issues, false, true, err)
 }
 
+// BuildAttachmentsShowRepo is the method responsible for return the attachments after build the array of attachments
 func BuildAttachmentsShowRepo(issues []github.Issue, showrepo bool, showAssigned bool, err error) []Attachment {
 
 	var attachments []Attachment
@@ -200,6 +212,7 @@ func BuildAttachmentsShowRepo(issues []github.Issue, showrepo bool, showAssigned
 	return attachments
 }
 
+// BuildAttachmentsShowPullRequests is responsible for returning the array of attachments of pull request data
 func BuildAttachmentsShowPullRequests(openPRs []github.PullRequest, err error) []Attachment {
 	var attachments []Attachment
 
@@ -255,6 +268,7 @@ func BuildAttachmentsShowPullRequests(openPRs []github.PullRequest, err error) [
 	return attachments
 }
 
+// BuildAttachmentsShowCommits is responsible for returning the array of attachments of show commits
 func BuildAttachmentsShowCommits(repos map[string][]github.RepositoryCommit, err error) []Attachment {
 	var attachments []Attachment
 	sortedRepoNames := make([]string, len(repos))
@@ -302,6 +316,7 @@ func BuildAttachmentsShowCommits(repos map[string][]github.RepositoryCommit, err
 	return attachments
 }
 
+// BuildAttachmentCommitSummaryByRepo is responsible for returning the array of attachments of commit summaries
 func BuildAttachmentCommitSummaryByRepo(reposToCommits map[string][]github.RepositoryCommit, owner string, days int) []Attachment {
 	var attachments []Attachment
 
